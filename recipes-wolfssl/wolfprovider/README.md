@@ -2,14 +2,15 @@
 
 The `wolfprovider` recipe enables the integration of wolfSSL's cryptographic functionalities into OpenSSL through a custom provider mechanism. This integration allows applications using OpenSSL to leverage wolfSSL's advanced cryptographic algorithms, combining wolfSSL's lightweight and performance-optimized cryptography with OpenSSL's extensive API and capabilities. `wolfprovider` is designed for easy integration into Yocto-based systems, ensuring a seamless blend of security and performance ideal for embedded and constrained environments.
 
-The `wolfproviderenv` yocto package provides the base testing tools for wolfProvider.
+The `wolfproviderenv` yocto package provides the base env setup wolfProvider.
+- **`wolfproviderenv`** - Environment setup for wolfProvider
+- **`wolfprovverify`** - Provider load verification test in `wolfproviderenv`
 
-- **`wolfproviderverify`** - Quick provider load verification test
-- **`wolfproviderenv`** - Environment setup script that orchestrates all tests
+the `wolfprovidertest` yocto package provides the unit test suite for wolfProvider.
+- **`wolfprovidertest`** - Unit test suite for wolfProvider
 
-The `wolfprovidertest` yocto package provides the unit test suite for wolfProvider.
-
-- **`wolfprovidertest`** - Comprehensive unit test suite from wolfProvider
+the `wolfprovidercmd` yocto package provides the command line test suite for wolfProvider.
+- **`wolfprovidercmd`** - Command line test suite for wolfProvider
 
 ## Getting Started
 
@@ -75,26 +76,6 @@ For a quick check that the provider loads correctly:
 wolfproviderverify
 ```
 
-Expected output:
-```
-Custom provider 'libwolfprov' loaded successfully.
-```
-
-#### Comprehensive Environment Test
-
-To run the complete test workflow with environment setup:
-
-```sh
-wolfproviderenv
-```
-
-This script:
-1. Sets up OPENSSL_MODULES and LD_LIBRARY_PATH
-2. Creates OpenSSL configuration for wolfProvider
-3. Runs `wolfprovverify` (quick check)
-4. Lists active OpenSSL providers
-5. Runs `wolfprovidertest` (full unit tests)
-
 #### Unit Test Suite
 
 To run just the comprehensive unit tests:
@@ -105,15 +86,7 @@ wolfprovidertest
 
 This runs the actual wolfProvider unit test suite with full coverage of all cryptographic operations.
 
-#### Expected Output
-
-Running `wolfproviderenv` should show:
-- Provider loaded successfully message
-- List of active providers including libwolfprov
-- Unit test results (PASSED or status)
-- OpenSSL configuration confirmation
-
-Example Output from `wolfproviderenv` should look something like this:
+Expected Output from `wolfprovidertest` should look something like this:
 ```
 ==========================================
 wolfProvider Test Environment Setup
@@ -149,6 +122,40 @@ Running comprehensive unit test suite...
 Passed!
 
 Tests completed.
+==========================================
+```
+
+#### Command Line Test Suite
+
+To run the command line test suite:
+
+```sh
+wolfprovidercmd
+```
+
+This runs the actual wolfProvider command line test suite with full coverage of all cryptographic operations.
+
+Expected Output from `wolfprovidercmd` should look something like this:
+```
+==========================================
+wolfProvider Command-Line Tests
+==========================================
+Running command-line test suite...
+
+[Command line test output...]
+
+=== All Command-Line Tests Passed ===
+FIPS mode was enabled
+Hash Test Result: 0 (0=success)
+AES Test Result: 0 (0=success)
+RSA Test Result: 0 (0=success)
+ECC Test Result: 0 (0=success)
+REQ Test Result: 0 (0=success)
+
+Command-line tests passed!
+
+==========================================
+Command-line tests completed.
 ==========================================
 ```
 
