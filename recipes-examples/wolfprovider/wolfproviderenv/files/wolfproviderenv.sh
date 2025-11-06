@@ -56,22 +56,17 @@ echo "=========================================="
 openssl list -providers -verbose
 
 # Test 3: Unit Tests
-echo ""
 echo "=========================================="
-echo "Test 3: wolfProvider Unit Tests"
+echo "wolfProvider Unit Tests"
 echo "=========================================="
 if [ -f /usr/bin/wolfprovidertest ]; then
     echo "Running comprehensive unit test suite..."
-    
-    # Create .libs symlink structure so the test can find the provider
-    mkdir -p /usr/lib/.libs
-    ln -sf /usr/lib/libwolfprov.so.0.0.0 /usr/lib/.libs/libwolfprov.so 2>/dev/null || true
     
     # Also ensure library is findable via LD_LIBRARY_PATH and current directory
     mkdir -p /tmp/.libs
     ln -sf /usr/lib/libwolfprov.so.0.0.0 /tmp/.libs/libwolfprov.so 2>/dev/null || true
     
-    # Run the test from /tmp where .libs is available, or set search path
+    # Run the test from /tmp where .libs is available
     # The test looks for .libs/libwolfprov.so relative to its search paths
     (
         export LD_LIBRARY_PATH="/tmp:$LD_LIBRARY_PATH"
@@ -93,4 +88,3 @@ echo ""
 echo "=========================================="
 echo "Tests completed."
 echo "=========================================="
-

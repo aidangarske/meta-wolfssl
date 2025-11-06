@@ -6,11 +6,10 @@ LICENSE = "CLOSED"
 LIC_FILES_CHKSUM = ""
 
 DEPENDS = "openssl pkgconfig-native wolfssl wolfprovider"
-PROVIDES += "wolfproviderverify"
-RPROVIDES_${PN} = "wolfproviderverify"
+PROVIDES += "wolfproviderenv"
+RPROVIDES_${PN} = "wolfproviderenv"
 
-
-SRC_URI = "file://wolfproviderverify.c \
+SRC_URI = "file://wolfproviderenv.c \
            file://wolfproviderenv.sh \
           "
 
@@ -19,7 +18,7 @@ S = "${WORKDIR}"
 inherit pkgconfig
 
 do_compile() {
-    ${CC} ${WORKDIR}/wolfproviderverify.c -o wolfproviderverify \
+    ${CC} ${WORKDIR}/wolfproviderenv.c -o wolfproviderverify \
         ${CFLAGS} ${LDFLAGS} $(pkg-config --cflags --libs openssl) -ldl -lwolfssl -lwolfprov
 }
 
@@ -29,9 +28,7 @@ do_install() {
     install -m 0755 ${WORKDIR}/wolfproviderenv.sh ${D}${bindir}/wolfproviderenv
 }
 
-FILES_${PN} += "${bindir}/wolfproviderverify \
-                ${bindir}/wolfproviderenv \
-               "
+FILES_${PN} += "${bindir}/wolfproviderverify ${bindir}/wolfproviderenv"
 
 # Dynamic RDEPENDS adjustment for bash
 python() {
