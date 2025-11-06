@@ -1,5 +1,5 @@
 SUMMARY = "Test suite for wolfProvider OpenSSL provider"
-DESCRIPTION = "Comprehensive test suite for wolfProvider functionality. Includes wolfprovverify (provider load verification), wolfproviderenv (test orchestration), and wolfprovidertest (unit test suite)."
+DESCRIPTION = "Enviroment setup for wolfProvider OpenSSL provider"
 HOMEPAGE = "https://www.wolfssl.com"
 SECTION = "examples"
 LICENSE = "CLOSED"

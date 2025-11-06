@@ -1,33 +1,17 @@
 #!/bin/bash
 
-# Setup for libwolfprov.so
-mkdir -p /usr/lib/ssl-3/modules
-if [ ! -L /usr/lib/ssl-3/modules/libwolfprov.so ]; then
-    ln -s /usr/lib/libwolfprov.so.0.0.0 /usr/lib/ssl-3/modules/libwolfprov.so
+echo "Setting up environment..."
+if [ -f /usr/bin/wolfproviderenv ]; then
+    source /usr/bin/wolfproviderenv
+    if [ $? -ne 0 ]; then
+        echo "✗ Failed to source environment setup!"
+        exit 1
+    fi
+else
+    echo "✗ wolfproviderenv not found!"
+    exit 1
 fi
 
-# Environment variables
-export OPENSSL_MODULES=/usr/lib/ssl-3/modules
-export LD_LIBRARY_PATH=/usr/lib:/lib:$LD_LIBRARY_PATH
-
-# Configuration for wolfprovider
-mkdir -p /opt/wolfprovider-configs
-cat > /opt/wolfprovider-configs/wolfprovider.conf <<EOF
-openssl_conf = openssl_init
-
-[openssl_init]
-providers = provider_sect
-
-[provider_sect]
-libwolfprov = libwolfprov_sect
-
-[libwolfprov_sect]
-activate = 1
-EOF
-
-export OPENSSL_CONF="/opt/wolfprovider-configs/wolfprovider.conf"
-
-echo ""
 echo "=========================================="
 echo "wolfProvider Command-Line Tests"
 echo "=========================================="
@@ -56,18 +40,18 @@ if [ -f /usr/share/wolfprovider-cmd-tests/scripts/cmd_test/do-cmd-tests.sh ]; th
     )
     CMD_TEST_RESULT=$?
     
+    echo ""
+    echo "=========================================="
     if [ $CMD_TEST_RESULT -eq 0 ]; then
-        echo ""
-        echo "Command-line tests passed!"
+        echo "✓ Command-line tests PASSED!"
     else
-        echo ""
-        echo "Command-line tests failed! (exit code: $CMD_TEST_RESULT)"
+        echo "✗ Command-line tests FAILED! (exit code: $CMD_TEST_RESULT)"
+        exit $CMD_TEST_RESULT
     fi
 else
-    echo "Command-line tests not available. Install wolfprovider-cmd-tests to run them."
+    echo "Command-line test suite not found at
+    /usr/share/wolfprovider-cmd-tests/scripts/cmd_test/do-cmd-tests.sh"
+    exit 1
 fi
 
-echo ""
-echo "=========================================="
-echo "Command-line tests completed."
 echo "=========================================="
