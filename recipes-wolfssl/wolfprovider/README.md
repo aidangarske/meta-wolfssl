@@ -81,8 +81,10 @@ WOLFPROVIDER_REPLACE_DEFAULT = "1"
 Normal mode is the default, so no configuration is needed unless you want replace-default mode.
 
 After changing modes, rebuild:
+NOTE: When switching between modes, we especially need to clean the sstate cache and rebuild the recipes.
 
 ```sh
+bitbake -c cleansstate openssl
 bitbake -c cleanall openssl wolfprovider
 bitbake <your_image_recipe_name>
 ```
