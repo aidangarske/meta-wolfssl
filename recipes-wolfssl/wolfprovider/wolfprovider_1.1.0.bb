@@ -1,5 +1,5 @@
-SUMMARY = "wolfProvider is a Proivder designed for Openssl 3.X.X"
-DESCRIPTION = "wolfProvider is a library that can be used as an Provider in OpenSSL"
+SUMMARY = "wolfProvider is a Provider designed for Openssl 3.X.X"
+DESCRIPTION = "wolfProvider is a crypto backend interface for use as an OpenSSL Provider"
 HOMEPAGE = "https://github.com/wolfSSL/wolfProvider"
 BUGTRACKER = "https://github.com/wolfSSL/wolfProvider/issues"
 SECTION = "libs"
@@ -10,13 +10,25 @@ DEPENDS += "util-linux-native"
 PROVIDES += "wolfprovider"
 RPROVIDES_${PN} = "wolfprovider"
 
-SRC_URI = "git://github.com/wolfssl/wolfProvider.git;nobranch=1;protocol=https;rev=f8f432408f2c6f446a9e5bd9330577d2c2e1ed4f"
+SRC_URI = "git://github.com/wolfssl/wolfProvider.git;nobranch=1;protocol=https;rev=a8223f5707a9c4460d89f4cbe7b3a129c4e85c6a"
 
 DEPENDS += " wolfssl \
             openssl \
             "
 
 inherit autotools pkgconfig
+
+# Pass replace-default mode to runtime
+do_install:append() {
+    install -d ${D}${sysconfdir}/wolfprovider
+    if [ "${WOLFPROVIDER_REPLACE_DEFAULT}" = "1" ]; then
+        echo "1" > ${D}${sysconfdir}/wolfprovider/replace-default-mode
+    else
+        echo "0" > ${D}${sysconfdir}/wolfprovider/replace-default-mode
+    fi
+}
+
+FILES:${PN} += "${sysconfdir}/wolfprovider/replace-default-mode"
 
 S = "${WORKDIR}/git"
 OPENSSL_YOCTO_DIR = "${COMPONENTS_DIR}/${PACKAGE_ARCH}/openssl/usr"
@@ -37,3 +49,21 @@ CFLAGS += " -I${S}/include -g0 -O2 -ffile-prefix-map=${WORKDIR}=."
 CXXFLAGS += " -I${S}/include  -g0 -O2 -ffile-prefix-map=${WORKDIR}=."
 LDFLAGS += " -Wl,--build-id=none"
 EXTRA_OECONF += " --with-openssl=${OPENSSL_YOCTO_DIR}"
+
+# create the symlink inside the image staging area
+do_install:append() {
+    install -d ${D}${libdir}
+    ln -sf libwolfprov.so.0.0.0 ${D}${libdir}/libwolfprov.so
+}
+
+# keep unversioned .so in the runtime package for this recipe
+FILES_SOLIBSDEV = ""
+
+# explicitly list what goes to -dev instead (headers, pc)
+FILES:${PN}-dev = "${includedir} ${libdir}/pkgconfig/*.pc"
+
+# ensure the symlink is assigned to runtime
+FILES:${PN} += "${libdir}/libwolfprov.so"
+
+# you’re shipping an unversioned .so in runtime: suppress QA
+INSANE_SKIP:${PN} += "dev-so"
