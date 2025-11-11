@@ -64,6 +64,29 @@ the `wolfprovidercmd` yocto package provides the command line test suite for wol
     bitbake <your_image_recipe_name>
     ```
 
+### Replace-Default Mode
+
+wolfProvider can operate in two modes:
+
+**Normal Mode (default)**: wolfProvider runs alongside OpenSSL's default provider and must be explicitly loaded via configuration. This is the default - no configuration needed.
+
+**Replace-Default Mode**: wolfProvider replaces OpenSSL's default provider and handles all crypto operations automatically.
+
+To enable replace-default mode, add to your `local.conf`:
+
+```bitbake
+WOLFPROVIDER_REPLACE_DEFAULT = "1"
+```
+
+Normal mode is the default, so no configuration is needed unless you want replace-default mode.
+
+After changing modes, rebuild:
+
+```sh
+bitbake -c cleanall openssl wolfprovider
+bitbake <your_image_recipe_name>
+```
+
 ### Testing wolfprovider
 
 After building and deploying your image to the target device, you can test `wolfprovider` functionality using the provided test programs.

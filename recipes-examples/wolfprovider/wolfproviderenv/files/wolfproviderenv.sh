@@ -4,12 +4,23 @@
 # When sourced: Sets up environment variables for other scripts to use
 # When executed: Also runs verification tests
 
-# Detect if wolfProvider is already the default (replace-default mode)
+# Detect if wolfProvider is in replace-default mode
 REPLACE_DEFAULT_MODE=0
-DEFAULT_PROVIDER=$(openssl list -providers 2>/dev/null | grep -A1 "^  default$" | grep "name:" | grep -i "wolfSSL Provider")
-if [ -n "$DEFAULT_PROVIDER" ]; then
-    REPLACE_DEFAULT_MODE=1
-    echo "Detected replace-default mode: wolfProvider is already the default provider"
+
+# Method 1: Check build-time configuration file
+if [ -f /etc/wolfprovider/replace-default-mode ]; then
+    MODE=$(cat /etc/wolfprovider/replace-default-mode)
+    if [ "$MODE" = "1" ]; then
+        REPLACE_DEFAULT_MODE=1
+        echo "Detected replace-default mode (from config file)"
+    fi
+else
+    # Method 2: Runtime detection by checking default provider
+    DEFAULT_PROVIDER=$(openssl list -providers 2>/dev/null | grep -A1 "^  default$" | grep "name:" | grep -i "wolfSSL Provider")
+    if [ -n "$DEFAULT_PROVIDER" ]; then
+        REPLACE_DEFAULT_MODE=1
+        echo "Detected replace-default mode (runtime detection)"
+    fi
 fi
 
 # Setup for libwolfprov.so

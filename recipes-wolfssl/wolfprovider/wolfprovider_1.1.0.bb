@@ -18,6 +18,18 @@ DEPENDS += " wolfssl \
 
 inherit autotools pkgconfig
 
+# Pass replace-default mode to runtime
+do_install:append() {
+    install -d ${D}${sysconfdir}/wolfprovider
+    if [ "${WOLFPROVIDER_REPLACE_DEFAULT}" = "1" ]; then
+        echo "1" > ${D}${sysconfdir}/wolfprovider/replace-default-mode
+    else
+        echo "0" > ${D}${sysconfdir}/wolfprovider/replace-default-mode
+    fi
+}
+
+FILES:${PN} += "${sysconfdir}/wolfprovider/replace-default-mode"
+
 S = "${WORKDIR}/git"
 OPENSSL_YOCTO_DIR = "${COMPONENTS_DIR}/${PACKAGE_ARCH}/openssl/usr"
 
