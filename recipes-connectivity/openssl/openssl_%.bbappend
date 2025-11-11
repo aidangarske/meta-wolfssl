@@ -25,6 +25,13 @@ do_configure:prepend:class-target () {
 # Ensure provider is present on TARGET runtime (doesn't touch -native/-nativesdk)
 RDEPENDS:libcrypto3:append:class-target = " wolfprovider"
 
+# Build OpenSSL as plain, non-FIPS OpenSSL
+# wolfProvider will provide FIPS functionality using wolfSSL FIPS
+# Override gekkOS setting which enables OpenSSL FIPS
+# Keep provider module support (needed for wolfProvider), but disable FIPS provider
+PACKAGECONFIG:class-target = ""
+EXTRA_OECONF:append:class-target = " no-fips"
+
 # Bring in/Apply your replace-default patch (target only)
 SRC_URI:append:class-target = " \
     git://github.com/wolfSSL/wolfProvider.git;protocol=https;nobranch=1;rev=v1.1.0;destsuffix=git/wolfProvider \
