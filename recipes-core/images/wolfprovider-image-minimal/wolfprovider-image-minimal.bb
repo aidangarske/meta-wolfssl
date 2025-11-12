@@ -1,6 +1,9 @@
 SUMMARY = "Minimal image with wolfSSL, test utilities, and wolfProvider"
 DESCRIPTION = "A minimal Linux image that includes wolfSSL library, test/benchmark utilities, and wolfProvider for OpenSSL 3.x integration"
 
+# Enable replace-default mode by inheriting the class (comment out for normal mode)
+inherit wolfprovider-replace-default
+
 # Add wolfProvider packages with OpenSSL 3.x support
 # The wolfssl_%.bbappend in this directory configures wolfSSL with wolfProvider features
 IMAGE_INSTALL:append = " \

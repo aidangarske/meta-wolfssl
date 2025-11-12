@@ -36,20 +36,40 @@ The `wolfprovidertest` yocto package will provide two apps, `wolfproviderenv` an
 
 3. **Add wolfprovider to your image**:
 
-    Modify your image recipe or `local.conf` file to include `wolfprovider`, `wolfssl`, `openssl`, `openssl-bin`, and `wolfprovidertest`. You will only need `openssl-bin` and `wolfprovidertest` if you want to use and test with our included example and conf file.
-
+    Modify your image recipe or `local.conf` file to include `wolfprovider`, `wolfssl`, `openssl`, and related packages.
 
     For yocto kirkstone or newer:
     ```
-    IMAGE_INSTALL:append = "wolfprovider wolfssl openssl openssl-bin wolfprovidertest"
+    IMAGE_INSTALL:append = " wolfprovider wolfssl openssl openssl-bin wolfprovidertest wolfprovidercmd wolfproviderenv"
     ```
 
     For yocto dunfell or earlier:
     ```
-    IMAGE_INSTALL_append = "wolfprovider wolfssl openssl openssl-bin wolfprovidertest"
+    IMAGE_INSTALL_append = " wolfprovider wolfssl openssl openssl-bin wolfprovidertest wolfprovidercmd wolfproviderenv"
     ```
 
-4. **Build Your Image**:
+4. **Configure wolfProvider Mode (Optional)**:
+
+    wolfProvider can operate in two modes:
+    
+    **Normal Mode (Default)**: wolfProvider acts as a supplementary provider alongside OpenSSL's default provider. No configuration needed.
+    
+    **Replace-Default Mode**: wolfProvider replaces OpenSSL's default provider by patching OpenSSL, making wolfSSL the primary crypto backend.
+    
+    To enable replace-default mode, simply inherit the class in your image recipe:
+    
+    ```bitbake
+    # In recipes-core/images/my-image/my-image.bb
+    inherit wolfprovider-replace-default
+    
+    IMAGE_INSTALL:append = " wolfprovider wolfssl openssl"
+    ```
+    
+    **No local.conf changes needed!** The replace-default patch will automatically be applied when OpenSSL and wolfProvider are built.
+    
+    For normal mode (default), simply don't inherit the class.
+
+5. **Build Your Image**:
 
     With the `meta-wolfssl` layer added and the necessary packages included in your image configuration, proceed to build your Yocto image as usual.
 
@@ -59,21 +79,49 @@ The `wolfprovidertest` yocto package will provide two apps, `wolfproviderenv` an
 
 ### Testing wolfprovider
 
-After building and deploying your image to the target device, you can test `wolfprovider` functionality through the `wolfproviderenv` script.
+After building and deploying your image to the target device, you can test `wolfprovider` functionality with three test suites:
 
-1. **Execute the wolfproviderenv Script**:
-
-    `wolfproviderenv` is located in `/usr/bin`, so just execute the script upon entering into your terminal.
+1. **Environment Setup and Verification**:
 
     ```sh
     wolfproviderenv
     ```
+    
+    This sets up the environment and verifies wolfProvider is correctly installed and loaded. It automatically detects replace-default mode.
 
-    The script performs necessary setup actions, executes `wolfprovidertest` to validate the integration, and lists available OpenSSL providers to confirm `wolfprovider` is active and correctly configured.
+2. **Unit Tests**:
 
-2. **Expected Output**:
+    ```sh
+    wolfprovidertest
+    ```
+    
+    Runs the comprehensive wolfProvider unit test suite from the upstream wolfProvider repository. Tests cover all cryptographic operations.
 
-    Look for messages indicating a successful environment setup, execution of `wolfprovidertest` with a custom provider loaded successfully, and `libwolfprovider` listed among active OpenSSL providers.
+3. **Command-Line Tests**:
+
+    ```sh
+    wolfprovidercmd
+    ```
+    
+    Runs OpenSSL command-line tests including:
+    - Hash operations (SHA, MD5, etc.)
+    - AES encryption/decryption
+    - RSA operations
+    - ECC operations
+    - Certificate operations
+
+### Demo Image
+
+A demo image is provided to verify wolfProvider works:
+
+**wolfprovider-image-minimal**: Demonstrates wolfProvider with all test suites
+```bash
+# In local.conf
+WOLFSSL_DEMOS = "wolfprovider-image-minimal"
+
+# Build
+bitbake wolfprovider-image-minimal
+```
 
 ### Documentation and Support
 

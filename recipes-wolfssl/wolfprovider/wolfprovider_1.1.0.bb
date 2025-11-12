@@ -20,7 +20,22 @@ RDEPENDS:${PN} += "wolfssl openssl"
 
 inherit autotools pkgconfig wolfssl-helper
 
+# wolfprovider is a consumer of wolfSSL, not a core package requiring explicit enable
+deltask do_wolfssl_check_package
+
 S = "${WORKDIR}/git"
+
+# Configuration for replace-default mode
+# Inherit wolfprovider-replace-default in your image recipe to enable replace-default mode
+WOLFPROVIDER_REPLACE_DEFAULT ??= "0"
+
+python __anonymous() {
+    mode = d.getVar('WOLFPROVIDER_REPLACE_DEFAULT')
+    if mode == '1':
+        bb.note("wolfProvider: REPLACE-DEFAULT mode ENABLED")
+    else:
+        bb.note("wolfProvider: normal mode (replace-default disabled)")
+}
 
 # Pass replace-default mode to runtime
 do_install:append() {

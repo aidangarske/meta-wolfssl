@@ -26,6 +26,32 @@ def wolfssl_conditional_require(d, package_name, inc_path):
         bb.parse.mark_dependency(d, inc_file)
         bb.parse.handle(inc_file, d, True)
 
+def wolfssl_conditional_mode(d, package_name, mode_var, mode_value, inc_path):
+    """
+    Conditionally include a mode .inc file based on a variable value
+
+    Args:
+        d: BitBake datastore
+        package_name: Name of the package to check for (e.g., 'wolfprovider')
+        mode_var: Variable name to check (e.g., 'WOLFPROVIDER_MODE')
+        mode_value: Value to match (e.g., 'replace-default')
+        inc_path: Relative path from layer root to the .inc file
+    """
+    import os
+    import bb.parse
+
+    # Check if package is in IMAGE_INSTALL or WOLFSSL_FEATURES
+    if bb.utils.contains('WOLFSSL_FEATURES', package_name, True, False, d) or \
+       bb.utils.contains('IMAGE_INSTALL', package_name, True, False, d):
+        # Check if mode variable matches the desired value
+        mode = d.getVar(mode_var)
+        if mode == mode_value:
+            layerdir = d.getVar('WOLFSSL_LAYERDIR')
+            inc_file = os.path.join(layerdir, inc_path)
+            bb.parse.mark_dependency(d, inc_file)
+            bb.parse.handle(inc_file, d, True)
+            bb.note("%s: %s mode enabled" % (package_name, mode_value))
+
 python do_wolfssl_check_package() {
     """
     Task to check if package is enabled via IMAGE_INSTALL or WOLFSSL_FEATURES
