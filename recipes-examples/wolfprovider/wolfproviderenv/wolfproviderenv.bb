@@ -11,6 +11,7 @@ RPROVIDES_${PN} = "wolfproviderenv"
 
 SRC_URI = "file://wolfproviderenv.c \
            file://wolfproviderenv.sh \
+           file://wolfprov-check-algs.sh \
           "
 
 S = "${WORKDIR}"
@@ -26,11 +27,12 @@ do_install() {
     install -d ${D}${bindir}
     install -m 0755 ${WORKDIR}/wolfproviderverify ${D}${bindir}/wolfproviderverify
     install -m 0755 ${WORKDIR}/wolfproviderenv.sh ${D}${bindir}/wolfproviderenv
+    install -m 0755 ${WORKDIR}/wolfprov-check-algs.sh ${D}${bindir}/wolfprov-check-algs
 }
 
-FILES_${PN} += "${bindir}/wolfproviderverify ${bindir}/wolfproviderenv"
+FILES_${PN} += "${bindir}/wolfproviderverify ${bindir}/wolfproviderenv ${bindir}/wolfprov-check-algs"
 
-# Dynamic RDEPENDS adjustment for bash
+# Dynamic RDEPENDS adjustment for bash and optional coreutils and procps
 python() {
     distro_version = d.getVar('DISTRO_VERSION', True)
     pn = d.getVar('PN', True)
@@ -38,6 +40,6 @@ python() {
     rdepends_var_name = 'RDEPENDS_' + pn if (distro_version.startswith('2.') or distro_version.startswith('3.')) else 'RDEPENDS:' + pn
 
     current_rdepends = d.getVar(rdepends_var_name, True) or ""
-    new_rdepends = current_rdepends + " bash"
+    new_rdepends = current_rdepends + " bash coreutils procps"
     d.setVar(rdepends_var_name, new_rdepends)
 }

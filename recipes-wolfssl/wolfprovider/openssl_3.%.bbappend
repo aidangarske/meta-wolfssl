@@ -25,6 +25,13 @@ python __anonymous() {
         mode='replace-default',
         inc_file='inc/wolfprovider/openssl/openssl-enable-wolfprovider-replace-default.inc'
     )
+    # wolfProvider replace-default mode with non-FIPS algorithm removal
+    wolfssl_conditional_require_mode(
+        d,
+        package_name='wolfprovider',
+        mode='replace-default-non-fips-algs',
+        inc_file='inc/wolfprovider/openssl/openssl-enable-wolfprovider-replace-default-non-fips-algs.inc'
+    )
 }
 
 # OpenSSL is a dependency of wolfprovider, not a direct image package
