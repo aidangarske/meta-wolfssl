@@ -226,7 +226,20 @@ python do_commercial_extract() {
     except bb.process.ExecutionError as exc:
         bb.fatal("Failed to extract bundle. Check credentials and bundle integrity.\n" + str(exc))
 
+    # Verify extraction and list what was created
     bb.plain("Commercial bundle extracted successfully")
+    bb.note(f"Contents of {target_dir} after extraction:")
+    for item in os.listdir(target_dir):
+        item_path = os.path.join(target_dir, item)
+        if os.path.isdir(item_path):
+            bb.note(f"  Directory: {item}")
+            # Check if this directory looks like the source
+            if os.path.exists(os.path.join(item_path, 'configure')) or \
+               os.path.exists(os.path.join(item_path, 'configure.ac')) or \
+               os.path.exists(os.path.join(item_path, 'configure.in')):
+                bb.note(f"    -> Contains configure files (likely source directory)")
+        elif os.path.isfile(item_path) and not item.endswith('.7z'):
+            bb.note(f"  File: {item}")
 }
 
 # Add task after fetch, before patch (place before do_patch so it still runs even if do_unpack is skipped)
@@ -267,6 +280,24 @@ python __anonymous() {
 # If configure script doesn't exist, generate it from configure.ac/configure.in
 do_configure() {
     bbnote "Commercial bundle detected, checking for configure script"
+    # Verify source directory exists, or try to find the actual extracted directory
+    if [ ! -d "${S}" ] || [ -z "$(ls -A ${S} 2>/dev/null)" ]; then
+        bbwarn "Expected source directory ${S} doesn't exist or is empty"
+        bbwarn "Searching WORKDIR for extracted bundle directories..."
+        # Look for directories that might contain configure files
+        found_dirs=$(find ${WORKDIR} -maxdepth 2 -type d -name "*wolfssl*" -o -name "*fips*" 2>/dev/null | grep -v "^${WORKDIR}$" | head -5)
+        if [ -n "${found_dirs}" ]; then
+            bbwarn "Found potential source directories:"
+            for dir in ${found_dirs}; do
+                if [ -f "${dir}/configure" ] || [ -f "${dir}/configure.ac" ] || [ -f "${dir}/configure.in" ]; then
+                    bbwarn "  ${dir} (contains configure files)"
+                else
+                    bbwarn "  ${dir}"
+                fi
+            done
+        fi
+        bbfatal "Source directory ${S} does not exist or is empty. Check bundle extraction and WOLFSSL_SRC setting."
+    fi
     # Ensure libtool sysroot option is stripped (not accepted by commercial bundles)
     unset CONFIGUREOPT_SYSROOT
     CONFIGUREOPTS="$(echo ${CONFIGUREOPTS} | sed 's/--with-libtool-sysroot=[^ ]*//g')"
@@ -278,7 +309,15 @@ do_configure() {
     
     # If configure script doesn't exist, try to generate it
     if [ ! -e "${CONFIGURE_SCRIPT}" ]; then
-        bbnote "configure script not found, attempting to generate it"
+        bbnote "configure script not found at ${CONFIGURE_SCRIPT}, attempting to generate it"
+        bbnote "Source directory S=${S}"
+        bbnote "Contents of source directory:"
+        ls -la ${S} 2>&1 | head -20 || true
+        # Check if configure.ac/in might be in a subdirectory
+        if [ ! -e "${S}/configure.ac" ] && [ ! -e "${S}/configure.in" ]; then
+            bbnote "Checking subdirectories for configure.ac/configure.in:"
+            find ${S} -maxdepth 2 -name "configure.ac" -o -name "configure.in" 2>/dev/null | head -5 || true
+        fi
         if [ -e "${S}/configure.ac" ] || [ -e "${S}/configure.in" ]; then
             # Check if autogen.sh exists and is not a stub
             if [ -f "${S}/autogen.sh" ] && [ -x "${S}/autogen.sh" ]; then
@@ -301,7 +340,20 @@ do_configure() {
                 bbfatal "configure script not found at ${CONFIGURE_SCRIPT} and cannot generate it (no autogen.sh or autoreconf available)"
             fi
         else
-            bbfatal "configure script not found at ${CONFIGURE_SCRIPT} and no configure.ac/configure.in to generate it from"
+            # Last resort: search deeper in the directory tree for configure files
+            bbwarn "configure.ac/configure.in not found in ${S}, searching subdirectories..."
+            found_configure_ac=$(find ${S} -type f -name "configure.ac" 2>/dev/null | head -1)
+            found_configure_in=$(find ${S} -type f -name "configure.in" 2>/dev/null | head -1)
+            if [ -n "${found_configure_ac}" ] || [ -n "${found_configure_in}" ]; then
+                configure_file="${found_configure_ac:-${found_configure_in}}"
+                configure_dir=$(dirname "${configure_file}")
+                bbwarn "Found configure.ac/in in subdirectory: ${configure_dir}"
+                bbwarn "This may indicate the bundle structure is different than expected."
+                bbwarn "You may need to adjust WOLFSSL_SRC or check the bundle structure."
+                bbfatal "configure script not found at ${CONFIGURE_SCRIPT}. Found configure.ac/in in ${configure_dir} but expected in ${S}. Check bundle structure."
+            else
+                bbfatal "configure script not found at ${CONFIGURE_SCRIPT} and no configure.ac/configure.in found anywhere in source tree"
+            fi
         fi
     fi
     
