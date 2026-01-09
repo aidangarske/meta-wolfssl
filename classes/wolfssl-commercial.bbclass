@@ -264,8 +264,9 @@ python __anonymous() {
 }
 
 # Skip autoreconf for commercial bundles and rely on bundled configure script
+# If configure script doesn't exist, generate it from configure.ac/configure.in
 do_configure() {
-    bbnote "Commercial bundle detected, skipping autoreconf and running bundled configure"
+    bbnote "Commercial bundle detected, checking for configure script"
     # Ensure libtool sysroot option is stripped (not accepted by commercial bundles)
     unset CONFIGUREOPT_SYSROOT
     CONFIGUREOPTS="$(echo ${CONFIGUREOPTS} | sed 's/--with-libtool-sysroot=[^ ]*//g')"
@@ -274,10 +275,40 @@ do_configure() {
         bbnote "stamp-h.in missing; generating stub for preconfigured commercial source"
         echo "timestamp" > "${S}/stamp-h.in"
     fi
+    
+    # If configure script doesn't exist, try to generate it
+    if [ ! -e "${CONFIGURE_SCRIPT}" ]; then
+        bbnote "configure script not found, attempting to generate it"
+        if [ -e "${S}/configure.ac" ] || [ -e "${S}/configure.in" ]; then
+            # Check if autogen.sh exists and is not a stub
+            if [ -f "${S}/autogen.sh" ] && [ -x "${S}/autogen.sh" ]; then
+                # Check if it's a stub (commercial bundle stub just exits)
+                if ! grep -q "Commercial bundle" "${S}/autogen.sh" 2>/dev/null; then
+                    bbnote "Running autogen.sh to generate configure script"
+                    cd ${S}
+                    ./autogen.sh || bbfatal "autogen.sh failed to generate configure script"
+                else
+                    bbnote "autogen.sh is a stub, using autoreconf instead"
+                    cd ${S}
+                    autoreconf -fvi || bbfatal "autoreconf failed to generate configure script"
+                fi
+            # Otherwise try autoreconf
+            elif command -v autoreconf >/dev/null 2>&1; then
+                bbnote "Running autoreconf to generate configure script"
+                cd ${S}
+                autoreconf -fvi || bbfatal "autoreconf failed to generate configure script"
+            else
+                bbfatal "configure script not found at ${CONFIGURE_SCRIPT} and cannot generate it (no autogen.sh or autoreconf available)"
+            fi
+        else
+            bbfatal "configure script not found at ${CONFIGURE_SCRIPT} and no configure.ac/configure.in to generate it from"
+        fi
+    fi
+    
     if [ -e "${CONFIGURE_SCRIPT}" ]; then
         oe_runconf
     else
-        bbfatal "configure script not found at ${CONFIGURE_SCRIPT}"
+        bbfatal "configure script not found at ${CONFIGURE_SCRIPT} after generation attempt"
     fi
 }
 
