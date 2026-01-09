@@ -147,16 +147,39 @@ python do_commercial_extract() {
     # If direct source directory is provided, skip extraction
     if src_dir and src_dir.strip() and not src_dir.startswith('${'):
         bb.note(f"COMMERCIAL_BUNDLE_SRC_DIR={src_dir}; copying source directory to WORKDIR.")
-
+        
+        # Verify source directory exists and is not empty
+        if not os.path.exists(src_dir):
+            bb.fatal(f"COMMERCIAL_BUNDLE_SRC_DIR={src_dir} does not exist. Check WOLFSSL_SRC_DIRECTORY setting.")
+        
+        if not os.path.isdir(src_dir):
+            bb.fatal(f"COMMERCIAL_BUNDLE_SRC_DIR={src_dir} is not a directory. Check WOLFSSL_SRC_DIRECTORY setting.")
+        
+        # Check if source directory has files
+        items = os.listdir(src_dir)
+        if not items:
+            bb.fatal(f"COMMERCIAL_BUNDLE_SRC_DIR={src_dir} is empty. Check WOLFSSL_SRC_DIRECTORY setting.")
+        
+        bb.note(f"Source directory {src_dir} contains {len(items)} items")
+        # Check for configure files in source directory
+        has_configure = os.path.exists(os.path.join(src_dir, 'configure')) or \
+                        os.path.exists(os.path.join(src_dir, 'configure.ac')) or \
+                        os.path.exists(os.path.join(src_dir, 'configure.in'))
+        if not has_configure:
+            bb.warn(f"Source directory {src_dir} does not contain configure/configure.ac/configure.in")
+            bb.warn(f"Contents: {', '.join(items[:10])}")
+            if len(items) > 10:
+                bb.warn(f"... and {len(items) - 10} more items")
+        
         # Copy source directory to WORKDIR to avoid polluting the original
         import shutil
         bundle_name = d.getVar('COMMERCIAL_BUNDLE_NAME')
         dest_dir = os.path.join(target_dir, bundle_name)
-
+        
         if os.path.exists(dest_dir):
             bb.note(f"Removing existing build directory: {dest_dir}")
             shutil.rmtree(dest_dir)
-
+        
         bb.note(f"Copying {src_dir} to {dest_dir}")
         shutil.copytree(src_dir, dest_dir, symlinks=True)
         bb.note("Source directory copied successfully")
@@ -229,6 +252,7 @@ python do_commercial_extract() {
     # Verify extraction and list what was created
     bb.plain("Commercial bundle extracted successfully")
     bb.note(f"Contents of {target_dir} after extraction:")
+    actual_source_dir = None
     for item in os.listdir(target_dir):
         item_path = os.path.join(target_dir, item)
         if os.path.isdir(item_path):
@@ -238,8 +262,56 @@ python do_commercial_extract() {
                os.path.exists(os.path.join(item_path, 'configure.ac')) or \
                os.path.exists(os.path.join(item_path, 'configure.in')):
                 bb.note(f"    -> Contains configure files (likely source directory)")
+                if not actual_source_dir:
+                    actual_source_dir = item_path
+            else:
+                # Check subdirectories for configure files
+                try:
+                    for subitem in os.listdir(item_path):
+                        subitem_path = os.path.join(item_path, subitem)
+                        if os.path.isdir(subitem_path):
+                            if os.path.exists(os.path.join(subitem_path, 'configure')) or \
+                               os.path.exists(os.path.join(subitem_path, 'configure.ac')) or \
+                               os.path.exists(os.path.join(subitem_path, 'configure.in')):
+                                bb.note(f"    -> Subdirectory {subitem} contains configure files")
+                                if not actual_source_dir:
+                                    actual_source_dir = subitem_path
+                except OSError:
+                    pass
         elif os.path.isfile(item_path) and not item.endswith('.7z'):
             bb.note(f"  File: {item}")
+    
+    # Check if expected source directory exists and has files
+    bundle_name = d.getVar('COMMERCIAL_BUNDLE_NAME')
+    expected_dir = os.path.join(target_dir, bundle_name) if bundle_name and bundle_name.strip() and not bundle_name.startswith('${') else None
+    
+    if expected_dir:
+        if os.path.exists(expected_dir) and os.path.isdir(expected_dir):
+            items = os.listdir(expected_dir)
+            if items:
+                bb.note(f"Expected source directory '{expected_dir}' exists and contains {len(items)} items")
+                # Verify it has configure files
+                if not (os.path.exists(os.path.join(expected_dir, 'configure')) or \
+                        os.path.exists(os.path.join(expected_dir, 'configure.ac')) or \
+                        os.path.exists(os.path.join(expected_dir, 'configure.in'))):
+                    bb.warn(f"Expected source directory '{expected_dir}' exists but doesn't contain configure files!")
+                    if actual_source_dir and actual_source_dir != expected_dir:
+                        bb.warn(f"Found source in '{actual_source_dir}' instead. Bundle structure may differ from WOLFSSL_SRC setting.")
+                        bb.warn(f"You may need to adjust WOLFSSL_SRC='{bundle_name}' to match the extracted directory name.")
+            else:
+                bb.warn(f"Expected source directory '{expected_dir}' exists but is EMPTY!")
+                if actual_source_dir:
+                    bb.warn(f"Found source in '{actual_source_dir}' instead. The bundle extracted to a different directory name than WOLFSSL_SRC='{bundle_name}'")
+                    bb.warn(f"Consider setting WOLFSSL_SRC to match the extracted directory, or use WOLFSSL_SRC_DIRECTORY to point directly to the source.")
+                else:
+                    bb.warn(f"Extraction may have failed - no source directory found with configure files!")
+        else:
+            if actual_source_dir:
+                bb.warn(f"Expected source directory '{expected_dir}' does not exist, but found source in '{actual_source_dir}'")
+                bb.warn(f"Bundle structure differs from WOLFSSL_SRC='{bundle_name}' setting.")
+                bb.warn(f"Consider adjusting WOLFSSL_SRC to match the extracted directory name, or use WOLFSSL_SRC_DIRECTORY to point directly to the source.")
+            else:
+                bb.warn(f"Expected source directory '{expected_dir}' does not exist and no source directory found!")
 }
 
 # Add task after fetch, before patch (place before do_patch so it still runs even if do_unpack is skipped)
@@ -280,24 +352,48 @@ python __anonymous() {
 # If configure script doesn't exist, generate it from configure.ac/configure.in
 do_configure() {
     bbnote "Commercial bundle detected, checking for configure script"
-    # Verify source directory exists, or try to find the actual extracted directory
-    if [ ! -d "${S}" ] || [ -z "$(ls -A ${S} 2>/dev/null)" ]; then
-        bbwarn "Expected source directory ${S} doesn't exist or is empty"
+    # Verify source directory exists
+    if [ ! -d "${S}" ]; then
+        bbwarn "Expected source directory ${S} doesn't exist"
         bbwarn "Searching WORKDIR for extracted bundle directories..."
         # Look for directories that might contain configure files
-        found_dirs=$(find ${WORKDIR} -maxdepth 2 -type d -name "*wolfssl*" -o -name "*fips*" 2>/dev/null | grep -v "^${WORKDIR}$" | head -5)
+        found_dirs=$(find ${WORKDIR} -maxdepth 3 -type d 2>/dev/null | grep -v "^${WORKDIR}$" | head -20)
         if [ -n "${found_dirs}" ]; then
-            bbwarn "Found potential source directories:"
+            bbwarn "Found directories in WORKDIR:"
             for dir in ${found_dirs}; do
                 if [ -f "${dir}/configure" ] || [ -f "${dir}/configure.ac" ] || [ -f "${dir}/configure.in" ]; then
-                    bbwarn "  ${dir} (contains configure files)"
+                    bbwarn "  ${dir} (contains configure files!)"
                 else
                     bbwarn "  ${dir}"
+                    # List first few files in this directory
+                    file_count=$(find "${dir}" -maxdepth 1 -type f 2>/dev/null | wc -l)
+                    dir_count=$(find "${dir}" -maxdepth 1 -type d 2>/dev/null | wc -l)
+                    bbwarn "    -> Contains ${file_count} files and ${dir_count} directories"
                 fi
             done
         fi
-        bbfatal "Source directory ${S} does not exist or is empty. Check bundle extraction and WOLFSSL_SRC setting."
+        bbfatal "Source directory ${S} does not exist. Check bundle extraction and WOLFSSL_SRC setting."
     fi
+    
+    # Check if directory is empty
+    if [ -z "$(ls -A ${S} 2>/dev/null)" ]; then
+        bbwarn "Source directory ${S} exists but is empty"
+        bbwarn "This may indicate the bundle extraction failed or the bundle is empty"
+        bbwarn "Checking if extraction actually ran..."
+        # Check extraction logs
+        if [ -f "${WORKDIR}/temp/log.do_commercial_extract" ]; then
+            bbwarn "Extraction log exists, checking for errors..."
+            tail -20 "${WORKDIR}/temp/log.do_commercial_extract" | grep -i "error\|fatal\|extracted" || true
+        fi
+        bbfatal "Source directory ${S} is empty. Bundle extraction may have failed or bundle structure is incorrect."
+    fi
+    
+    # List what's actually in the source directory
+    bbnote "Contents of source directory ${S}:"
+    ls -la ${S} 2>&1 | head -30 || true
+    file_count=$(find ${S} -maxdepth 1 -type f 2>/dev/null | wc -l)
+    dir_count=$(find ${S} -maxdepth 1 -type d 2>/dev/null | wc -l)
+    bbnote "Source directory contains ${file_count} files and ${dir_count} directories"
     # Ensure libtool sysroot option is stripped (not accepted by commercial bundles)
     unset CONFIGUREOPT_SYSROOT
     CONFIGUREOPTS="$(echo ${CONFIGUREOPTS} | sed 's/--with-libtool-sysroot=[^ ]*//g')"
