@@ -40,14 +40,14 @@ WOLFBOOT_SIGNING_KEY = "/secure/path/wolfboot_signing_private_key.der"
 WOLFBOOT_PUBLIC_KEY = "/secure/path/wolfboot_signing_public_key.der"
 ```
 
-Before a cold-boot FCS test, repeat the development-board virtual-owner
-provisioning procedure in `recipes-support/libfcs/agilex5/README.md`. It uses
-Quartus Programmer and a recoverable virtual key; it is separate from the
-wolfBoot signing key and any permanent SDM/eFuse provisioning.
+Before a cold-boot FCS test, reapply the SDM virtual owner key as described in
+the provisioning note in `recipes-support/libfcs/agilex5/README.md`. A virtual
+key is cleared by power loss; it is separate from the wolfBoot signing key and
+any permanent SDM/eFuse provisioning.
 
 ## Build with Kas
 
-Append both meta-wolfSSL fragments to the normal GSRD build:
+Append the meta-wolfSSL wolfBoot fragment to the normal GSRD build:
 
 ```sh
 cp meta-wolfssl/recipes-wolfssl/wolfboot/agilex5/kas-wolfboot.yml ./kas-wolfboot.yml
@@ -60,8 +60,7 @@ independent layer configurations. Kas requires concatenated files to come
 from one checkout; keep the copied fragment local and untracked, and keep
 `wolfboot-secrets.yml` outside version control.
 
-The exact FCS fragment filename can differ in a downstream GSRD checkout.
-Use the one documented by the libfcs Agilex guide. The wolfBoot fragment sets:
+The wolfBoot fragment sets:
 
 - the Agilex 5 wolfBoot config and pinned source revision;
 - Linux root device `/dev/mmcblk0p4`;
