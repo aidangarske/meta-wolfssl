@@ -26,17 +26,6 @@ the board loses power and must be reapplied before each cold-boot test. Once an
 owner key is active, boot and FPGA configuration artifacts must be signed by
 that owner.
 
-### Development-board virtual-owner provisioning
-
-Before a cold-boot FCS test, provision a recoverable SDM virtual owner key and
-load the matching signed HPS image using the platform team’s Quartus/JTAG
-procedure. Keep keys, signed RBF files, and machine-specific scripts outside
-this repository; never use permanent eFuse provisioning for development tests.
-Virtual provisioning is cleared by power loss, so it must be repeated before
-each cold-boot test. Acceptance requires `/sys/kernel/fcs_sysfs` and a
-`wolfcrypttest` result containing `ALTERA-FCS test passed!`; a skipped test or
-SDM error 133 is not hardware validation.
-
 Run BitBake on a Linux build server with the memory and storage required by the
 GSRD release. Do not run BitBake on the target board.
 
@@ -91,22 +80,8 @@ local_conf_header:
     SRCREV:pn-wolfssl = "c177f861d0ecba3a998e1cae3d18d21103572aed"
 ```
 
-The same fragment is supplied as `agilex5/kas-wolfssl.yml`. Kas
-configurations can be combined without changing the GSRD's supplied
-`kas.yml`:
-
-```sh
-cp meta-wolfssl/recipes-support/libfcs/agilex5/kas-wolfssl.yml ./kas-wolfssl.yml
-kas build kas.yml:kas/image/gsrd-console-image.yaml:kas-wolfssl.yml
-```
-
-Kas requires concatenated files to come from one checkout. Keep the copied
-file local and untracked; do not commit private signing settings or generated
-machine paths.
-
-The fragment pins wolfSSL to a master commit that contains the Agilex 5 port;
-see [Use a wolfSSL revision with the Agilex 5 port](#use-a-wolfssl-revision-with-the-agilex-5-port).
-Do not test a stock wolfSSL release and call it an offload build.
+Save the fragment as `wolfssl-fcs.yml`. Kas configurations can be combined
+without changing the GSRD's supplied `kas.yml`.
 
 For a local `meta-wolfssl` checkout under the GSRD Yocto directory, replace the
 repository URL and branch with:
@@ -159,7 +134,7 @@ same `gsrd-console-image` target documented by Altera:
 
 ```sh
 source venv/bin/activate
-kas build kas.yml:kas-wolfssl.yml gsrd-console-image
+kas build kas.yml:wolfssl-fcs.yml gsrd-console-image
 ```
 
 With the Kas container, run the equivalent command from the same directory:
@@ -168,7 +143,7 @@ With the Kas container, run the equivalent command from the same directory:
 docker run --rm --user "$(id -u):$(id -g)" \
     -e HOME=/work -v "$PWD:/work" -w /work \
     ghcr.io/siemens/kas/kas:4.8 \
-    build kas.yml:kas-wolfssl.yml gsrd-console-image
+    build kas.yml:wolfssl-fcs.yml gsrd-console-image
 ```
 
 The SD card image is written to BitBake's `DEPLOY_DIR_IMAGE`. Its parent
@@ -206,7 +181,7 @@ the `source` line, through `kas shell` so Yocto's native tools retain the
 docker run --rm --user "$(id -u):$(id -g)" \
     -e HOME=/work -v "$PWD:/work" -w /work \
     ghcr.io/siemens/kas/kas:4.8 \
-    shell kas.yml:kas-wolfssl.yml -c '
+    shell kas.yml:wolfssl-fcs.yml -c '
         set -e
         deploy="$(bitbake-getvar --value DEPLOY_DIR_IMAGE)"
         image="$deploy/gsrd-console-image-agilex5e_013b.rootfs.wic"
