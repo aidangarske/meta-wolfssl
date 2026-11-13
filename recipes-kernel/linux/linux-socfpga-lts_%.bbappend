@@ -3,6 +3,8 @@
 # configuration requests FIT_KERNEL_COMP_ALG = "none". Rebuild only the FIT
 # payload after the GSRD deploy task when wolfBoot is enabled.
 
+WOLFBOOT_ENABLE ??= "0"
+
 do_deploy:append() {
     if [ "${WOLFBOOT_ENABLE}" = "1" ]; then
         fit_its="${B}/fit_${MACHINE_STRIP}_kernel.its"
